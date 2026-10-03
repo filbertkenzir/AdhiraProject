@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Admin Dashboard - Print & Copy</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -19,7 +20,7 @@
         </div>
 
         <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
-            <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600">
+            <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600 transition">
                 Cashier
             </a>
 
@@ -41,10 +42,23 @@
         </nav>
 
         <div class="p-3 border-t border-blue-600">
-            <button type="button" id="openLoginBtn"
-                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600 text-sm">
-                Login
-            </button>
+            @auth
+                <div class="mb-2 text-xs text-blue-100 px-1">
+                    <span class="font-semibold block text-sm">{{ Auth::user()->name }}</span>
+                    <span class="opacity-75 uppercase text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold tracking-wider">{{ Auth::user()->role }}</span>
+                </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600 text-white text-sm transition">
+                        Logout
+                    </button>
+                </form>
+            @else
+                <button type="button" id="openLoginBtn"
+                        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600 text-sm">
+                    Login
+                </button>
+            @endauth
         </div>
     </aside>
 
@@ -61,15 +75,15 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                     <p class="text-sm text-slate-400 mb-1">Total Penjualan Hari Ini</p>
-                    <p class="text-2xl font-semibold text-blue-700">Rp 1.250.000</p>
+                    <p class="text-2xl font-semibold text-blue-700">Rp {{ number_format($totalSalesToday ?? 0, 0, ',', '.') }}</p>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                     <p class="text-sm text-slate-400 mb-1">Total Pengunjung Hari Ini</p>
-                    <p class="text-2xl font-semibold text-blue-700">38</p>
+                    <p class="text-2xl font-semibold text-blue-700">{{ $totalVisitorsToday ?? 0 }}</p>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
                     <p class="text-sm text-slate-400 mb-1">Metode Terbanyak</p>
-                    <p class="text-2xl font-semibold text-blue-700">Print Hitam Putih</p>
+                    <p class="text-2xl font-semibold text-blue-700">{{ $topMethodName ?? '-' }}</p>
                 </div>
             </div>
 
@@ -85,7 +99,21 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <h2 class="font-semibold text-slate-700 mb-4">Keperluan Pengunjung</h2>
                     <div class="space-y-3" id="visitorNeeds">
-                        <!-- dummy data, nanti diisi dari backend -->
+                        @if(isset($visitorNeeds) && count($visitorNeeds) > 0)
+                            @foreach($visitorNeeds as $need)
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-slate-600">{{ $need['name'] }}</span>
+                                        <span class="text-slate-500">{{ $need['percentage'] }}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-2">
+                                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ $need['percentage'] }}%"></div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <p class="text-sm text-slate-400">Belum ada data pengunjung.</p>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -101,14 +129,16 @@
             <h2 class="text-lg font-semibold text-slate-800">Masuk ke Akun</h2>
             <p class="text-sm text-slate-400">Silakan login untuk mengakses dashboard</p>
         </div>
-        <form onsubmit="event.preventDefault(); alert('Ini demo frontend, belum ada proses login.');" class="space-y-4">
+        <div id="loginAlert" class="hidden mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-600"></div>
+        <form id="loginForm" class="space-y-4">
+            @csrf
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Email / Username</label>
-                <input type="text" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" name="login" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
-                <input type="password" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" name="password" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition">Masuk</button>
         </form>
@@ -117,6 +147,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
     function updateClock() {
         document.getElementById('clock').textContent = new Date().toLocaleString('id-ID');
     }
@@ -131,36 +163,50 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const loginModal = document.getElementById('loginModal');
-    document.getElementById('openLoginBtn').addEventListener('click', () => loginModal.classList.remove('hidden'));
-    document.getElementById('closeLoginModal').addEventListener('click', () => loginModal.classList.add('hidden'));
+    const openLoginBtn = document.getElementById('openLoginBtn');
+    if (openLoginBtn) {
+        openLoginBtn.addEventListener('click', () => loginModal.classList.remove('hidden'));
+    }
+    const closeLoginModal = document.getElementById('closeLoginModal');
+    if (closeLoginModal) {
+        closeLoginModal.addEventListener('click', () => loginModal.classList.add('hidden'));
+    }
     loginModal.addEventListener('click', (e) => { if (e.target === loginModal) loginModal.classList.add('hidden'); });
 
-    // ---------- dummy data keperluan pengunjung ----------
-    const visitorNeeds = [
-        { name: 'Print Hitam Putih', percentage: 42 },
-        { name: 'Fotocopy Hitam Putih', percentage: 28 },
-        { name: 'Print Berwarna', percentage: 18 },
-        { name: 'Fotocopy Berwarna', percentage: 12 },
-    ];
+    // Login Form Submit (AJAX)
+    const loginForm = document.getElementById('loginForm');
+    const loginAlert = document.getElementById('loginAlert');
+    loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        loginAlert.classList.add('hidden');
 
-    const container = document.getElementById('visitorNeeds');
-    visitorNeeds.forEach(item => {
-        const div = document.createElement('div');
-        div.innerHTML = `
-            <div class="flex justify-between text-sm mb-1">
-                <span class="text-slate-600">${item.name}</span>
-                <span class="text-slate-500">${item.percentage}%</span>
-            </div>
-            <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-blue-600 h-2 rounded-full" style="width: ${item.percentage}%"></div>
-            </div>
-        `;
-        container.appendChild(div);
+        const formData = new FormData(loginForm);
+        fetch('/login', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.redirect || '/admin';
+            } else {
+                loginAlert.textContent = data.message || 'Login gagal.';
+                loginAlert.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            loginAlert.textContent = 'Terjadi kesalahan sistem.';
+            loginAlert.classList.remove('hidden');
+        });
     });
 
-    // ---------- dummy chart 7 hari terakhir ----------
-    const chartLabels = ['17 Sep', '18 Sep', '19 Sep', '20 Sep', '21 Sep', '22 Sep', '23 Sep'];
-    const chartData   = [850000, 920000, 700000, 1100000, 980000, 1300000, 1250000];
+    // ---------- Chart 7 Hari Terakhir dari Backend ----------
+    const chartLabels = @json($chartLabels ?? []);
+    const chartData   = @json($chartData ?? []);
 
     new Chart(document.getElementById('salesChart'), {
         type: 'line',

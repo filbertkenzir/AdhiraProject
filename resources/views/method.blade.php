@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Tambah Metode - Print & Copy</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -40,10 +41,23 @@
         </nav>
  
         <div class="p-3 border-t border-blue-600">
-            <button type="button" id="openLoginBtn"
-                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600 text-sm">
-                Login
-            </button>
+            @auth
+                <div class="mb-2 text-xs text-blue-100 px-1">
+                    <span class="font-semibold block text-sm">{{ Auth::user()->name }}</span>
+                    <span class="opacity-75 uppercase text-[10px] bg-blue-800 px-1.5 py-0.5 rounded font-bold tracking-wider">{{ Auth::user()->role }}</span>
+                </div>
+                <form action="{{ route('logout') }}" method="POST">
+                    @csrf
+                    <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600 text-white text-sm transition">
+                        Logout
+                    </button>
+                </form>
+            @else
+                <button type="button" id="openLoginBtn"
+                        class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-blue-100 hover:bg-blue-600 text-sm">
+                    Login
+                </button>
+            @endauth
         </div>
     </aside>
 
@@ -56,19 +70,31 @@
 
         <main class="flex-1 p-6 space-y-6">
 
+            @if(session('success'))
+                <div class="bg-emerald-100 border border-emerald-300 text-emerald-700 px-4 py-3 rounded-xl text-sm">
+                    {{ session('success') }}
+                </div>
+            @endif
+            @if(session('error'))
+                <div class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl text-sm">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <!-- FORM -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="font-semibold text-slate-700 mb-4">Tambah Metode</h2>
 
-                <form id="methodForm" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <form id="methodForm" action="{{ route('methods.store') }}" method="POST" class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    @csrf
                     <div class="sm:col-span-3">
                         <label class="block text-sm font-medium text-slate-600 mb-1">Nama Metode</label>
-                        <input type="text" id="methodName" required placeholder="ex: Print Hitam Putih"
+                        <input type="text" id="methodName" name="name" required placeholder="ex: Print Hitam Putih"
                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-600 mb-1">Harga / Lembar</label>
-                        <input type="number" id="methodPrice" min="0" required placeholder="0"
+                        <input type="number" id="methodPrice" name="price" min="0" required placeholder="0"
                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="sm:col-span-4">
@@ -92,22 +118,16 @@
                             </tr>
                         </thead>
                         <tbody id="methodsTableBody">
-                            <tr class="border-b border-slate-50">
-                                <td class="py-3 pr-4 font-medium text-slate-700">Print Hitam Putih</td>
-                                <td class="py-3 pr-4">Rp 500</td>
-                            </tr>
-                            <tr class="border-b border-slate-50">
-                                <td class="py-3 pr-4 font-medium text-slate-700">Print Berwarna</td>
-                                <td class="py-3 pr-4">Rp 1.500</td>
-                            </tr>
-                            <tr class="border-b border-slate-50">
-                                <td class="py-3 pr-4 font-medium text-slate-700">Fotocopy Hitam Putih</td>
-                                <td class="py-3 pr-4">Rp 300</td>
-                            </tr>
-                            <tr class="border-b border-slate-50">
-                                <td class="py-3 pr-4 font-medium text-slate-700">Fotocopy Berwarna</td>
-                                <td class="py-3 pr-4">Rp 1.200</td>
-                            </tr>
+                            @forelse($methods as $method)
+                                <tr class="border-b border-slate-50">
+                                    <td class="py-3 pr-4 font-medium text-slate-700">{{ $method->name }}</td>
+                                    <td class="py-3 pr-4">Rp {{ number_format($method->price, 0, ',', '.') }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="py-4 text-center text-slate-400">Belum ada metode.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -124,14 +144,16 @@
             <h2 class="text-lg font-semibold text-slate-800">Masuk ke Akun</h2>
             <p class="text-sm text-slate-400">Silakan login untuk mengakses dashboard</p>
         </div>
-        <form onsubmit="event.preventDefault(); alert('Ini demo frontend, belum ada proses login.');" class="space-y-4">
+        <div id="loginAlert" class="hidden mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-600"></div>
+        <form id="loginForm" class="space-y-4">
+            @csrf
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Email / Username</label>
-                <input type="text" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" name="login" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
-                <input type="password" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" name="password" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <button type="submit" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2.5 rounded-lg transition">Masuk</button>
         </form>
@@ -140,6 +162,8 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
     function updateClock() {
         document.getElementById('clock').textContent = new Date().toLocaleString('id-ID');
     }
@@ -154,26 +178,45 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const loginModal = document.getElementById('loginModal');
-    document.getElementById('openLoginBtn').addEventListener('click', () => loginModal.classList.remove('hidden'));
-    document.getElementById('closeLoginModal').addEventListener('click', () => loginModal.classList.add('hidden'));
+    const openLoginBtn = document.getElementById('openLoginBtn');
+    if (openLoginBtn) {
+        openLoginBtn.addEventListener('click', () => loginModal.classList.remove('hidden'));
+    }
+    const closeLoginModal = document.getElementById('closeLoginModal');
+    if (closeLoginModal) {
+        closeLoginModal.addEventListener('click', () => loginModal.classList.add('hidden'));
+    }
     loginModal.addEventListener('click', (e) => { if (e.target === loginModal) loginModal.classList.add('hidden'); });
 
-    document.getElementById('methodForm').addEventListener('submit', function (e) {
+    // Login Form Submit (AJAX)
+    const loginForm = document.getElementById('loginForm');
+    const loginAlert = document.getElementById('loginAlert');
+    loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
+        loginAlert.classList.add('hidden');
 
-        const name  = document.getElementById('methodName').value;
-        const price = parseInt(document.getElementById('methodPrice').value, 10);
-
-        const tbody = document.getElementById('methodsTableBody');
-        const row = document.createElement('tr');
-        row.className = 'border-b border-slate-50';
-        row.innerHTML = `
-            <td class="py-3 pr-4 font-medium text-slate-700">${name}</td>
-            <td class="py-3 pr-4">Rp ${price.toLocaleString('id-ID')}</td>
-        `;
-        tbody.prepend(row);
-
-        this.reset();
+        const formData = new FormData(loginForm);
+        fetch('/login', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = data.redirect || '/admin';
+            } else {
+                loginAlert.textContent = data.message || 'Login gagal.';
+                loginAlert.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            loginAlert.textContent = 'Terjadi kesalahan sistem.';
+            loginAlert.classList.remove('hidden');
+        });
     });
 });
 </script>
